@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QTextEdit, QTreeWidget, QDockWidget, QTreeView, QInputDialog, QLineEdit, QMessageBox
+from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QTextEdit, QTreeWidget, QDockWidget, QTreeView, QInputDialog, QFileDialog, QLineEdit, QMessageBox
 from PyQt6.QtGui import QIcon, QAction, QFileSystemModel
 from PyQt6.QtCore import Qt, pyqtSignal
 from pathlib import Path
@@ -49,22 +49,31 @@ class mainWindow(QMainWindow, CenterMixin):
         newFileAct.setStatusTip("Create a new file")
         newFileAct.triggered.connect(self.createFileAction)
 
-    #Menubar action: create new file
+    #Menubar action: create new Folder
         newFolderAct = QAction("New Folder", self)
         newFolderAct.setShortcut("Ctrl+K")
         newFolderAct.setStatusTip("Create a new folder")
         newFolderAct.triggered.connect(self.createFolderAction)
+
+    #Menubar action: open file
+        openFileAct = QAction("Open File", self)
+        openFileAct.setShortcut("Ctrl+O")
+        openFileAct.setStatusTip("Open a file")
+        openFileAct.triggered.connect(self.openFile)
 
     #Create menu bar and add menubar members
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(newFileAct)
         fileMenu.addAction(newFolderAct)
+        fileMenu.addAction(openFileAct)
         fileMenu.addAction(exitAct)
 
     #Central text editor widget
-        textEdit = QTextEdit()
-        self.setCentralWidget(textEdit)
+        self.textEditor = QTextEdit()
+        self.textEditor.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.textEditor.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setCentralWidget(self.textEditor)
 
     #File tree dock widget
         self.file_tree_widget = fileTreeView()
@@ -104,6 +113,13 @@ class mainWindow(QMainWindow, CenterMixin):
         folder_name, ok = QInputDialog.getText(self, "New Folder", "Enter folder name:", QLineEdit.EchoMode.Normal, "New Folder")
         if ok and folder_name:
             createNewFolder(self, self.current_directory, folder_name)
+
+    def openFile(self):
+        #display a file open prompt and allow the user to select a file to open
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open File") #returns an empty string if the user clicks cancel
+        if file_path != "":
+            loadFile(self, file_path)
+            self.statusBar().showMessage(f"Opened file: {file_path}")
 
     def exitProgram(self):
         #display message to confirm the user would like to exit the program
