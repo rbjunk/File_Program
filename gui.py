@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QTextEdit, QTreeWidget, QDockWidget, QTreeView, QInputDialog, QFileDialog, QLineEdit, QMessageBox
+from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QTextEdit, QTreeWidget, QDockWidget, QTreeView, QInputDialog, QFileDialog, QLineEdit, QMessageBox, QMenu
 from PyQt6.QtGui import QIcon, QAction, QFileSystemModel
 from PyQt6.QtCore import Qt, pyqtSignal
 from pathlib import Path
@@ -16,14 +16,11 @@ class CenterMixin():
 class defaultWindow(QWidget, CenterMixin):
     def __init__(self):
         super().__init__()
-
         self.initUI()
 
     def initUI(self):
-
         self.resize(350, 250)
         self.center()
-
         self.setWindowTitle("File App")
         self.show()
 
@@ -79,6 +76,7 @@ class mainWindow(QMainWindow, CenterMixin):
         self.file_tree_widget = fileTreeView()
         self.file_tree_widget.directorySelected.connect(self.onDirectorySelected) #when a directory change is detected, call the OnDirectorySelected method with the appropriate directory path
         self.file_tree_widget.fileSelected.connect(self.onFileSelected) #when a file change is detected, call the OnFileSelected method with the appropriate file path
+        self.file_tree_widget.loadFileRequested.connect(self.openFile) #when a file is requested to be loaded from the file tree view, call the openFile method with the requested location 
         dock = QDockWidget("File Tree", self)
         dock.setWidget(self.file_tree_widget)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock)
@@ -106,18 +104,28 @@ class mainWindow(QMainWindow, CenterMixin):
         #display message to capture file name text and attempt file creation
         file_name, ok = QInputDialog.getText(self, "New File", "Enter file name:", QLineEdit.EchoMode.Normal, "File.txt")
         if ok and file_name:
-            createNewFile(self, self.current_directory, file_name)
+            file_path = createNewFile(self, self.current_directory, file_name)
+            if file_path is not None:
+                self.file_tree_widget.focusOnPath(file_path)
 
     def createFolderAction(self):
         #display message to capture folder name text and attempt folder creation
         folder_name, ok = QInputDialog.getText(self, "New Folder", "Enter folder name:", QLineEdit.EchoMode.Normal, "New Folder")
         if ok and folder_name:
-            createNewFolder(self, self.current_directory, folder_name)
+            folder_path = createNewFolder(self, self.current_directory, folder_name)
+            if folder_path is not None:
+                self.file_tree_widget.focusOnPath(folder_path)
 
-    def openFile(self):
+    def openFile(self, from_file_tree = False):
         #display a file open prompt and allow the user to select a file to open
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open File") #returns an empty string if the user clicks cancel
-        if file_path != "":
+        file_path = None
+        #test if openFile was requested from the menu and needs a file or if a specific file has already been selected in the file tree view
+        if from_file_tree:
+            file_path = from_file_tree
+        else:
+            file_path, _ = QFileDialog.getOpenFileName(self, "Open File") #returns an empty string if the user clicks cancel
+
+        if file_path != "": #ensure file path is not empty
             loadFile(self, file_path)
             self.statusBar().showMessage(f"Opened file: {file_path}")
 
@@ -137,6 +145,7 @@ class mainWindow(QMainWindow, CenterMixin):
 class fileTreeView(QTreeView):
     directorySelected = pyqtSignal(str) #custom signal to emit the current selected directory
     fileSelected = pyqtSignal(str) #custom signal to emit the current selected file and parent directory
+    loadFileRequested = pyqtSignal(str) #custom signal to emit the requested file to be opened in the main text editor
     def __init__(self):
         super().__init__()
         self.file_system = QFileSystemModel()
@@ -144,6 +153,10 @@ class fileTreeView(QTreeView):
         root_file_path = str(Path.cwd())
         self.file_system.setRootPath(root_file_path)
         self.setModel(self.file_system)
+
+        #context menu (right click properties) for items in the file tree view
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.openContextMenu)
 
         root_index = self.file_system.index(root_file_path)
         self.setRootIndex(root_index)
@@ -161,6 +174,90 @@ class fileTreeView(QTreeView):
             parent_path = str(Path(path).parent)
             self.directorySelected.emit(parent_path)
             self.fileSelected.emit(path)
+
+    def focusOnPath(self, path):
+        #focus the file tree on a specific file/folder and update the currently selected file or directory
+        pathIndex = self.file_system.index(path) #index in the model of a specific path
+        if pathIndex.isValid():
+            self.expand(pathIndex)
+            self.scrollTo(pathIndex)
+            self.setCurrentIndex(pathIndex)
+            #if the focused path is a directory, then emit the directory
+            if self.file_system.isDir(pathIndex):
+                self.directorySelected.emit(path)
+            else:
+            #if the focused path is a file, then emit the parent directory of the file and then emit the file path
+                parent_path = str(Path(path).parent)
+                self.directorySelected.emit(parent_path)
+                self.fileSelected.emit(path)
+        #fallback for if a root folder or file was deleted
+        else:
+            self.fileSelected.emit(None)
+            self.directorySelected.emit(Path.cwd)
+
+    def openContextMenu(self, position):
+        #Find the index of the item at the position of the cursor
+        index = self.indexAt(position)
+        if not index.isValid():
+            return   # right-click on empty area
+        #file path to the selected item
+        path = self.file_system.filePath(index)
+
+        menu = QMenu(self)
+        if self.file_system.isDir(index):
+            #Context menu actions for folders
+            #Action to expand the folder in the file tree view
+            expandFolderAct = QAction("Expand Folder", self)
+            expandFolderAct.setStatusTip("Expand the folder")
+            expandFolderAct.triggered.connect(lambda: self.expand(index))
+            #Action to collapse the folder in te file tree view
+            collapseFolderAct = QAction("Collapse Folder", self)
+            collapseFolderAct.setStatusTip("Collapse the folder")
+            collapseFolderAct.triggered.connect(lambda: self.collapse(index))
+            #Action to delete the selected folder
+            deleteFolderAct = QAction("Delete Folder", self)
+            deleteFolderAct.setStatusTip("Delete the selected folder")
+            deleteFolderAct.triggered.connect(lambda: self.deleteFolderHelper(path))
+            #check if the folder is already expanded
+            if self.isExpanded(index):
+                menu.addAction(collapseFolderAct)
+            else:
+                menu.addAction(expandFolderAct)
+            menu.addAction(deleteFolderAct)
+        else:
+            #Context menu actions for files
+            #open a selected file in the text editor widget
+            openFileAct = QAction("Open File", self)
+            openFileAct.setStatusTip("Load the file into the editor")
+            openFileAct.triggered.connect(lambda: self.loadFileRequested.emit(path))
+            #Action to delete the selected file
+            deleteFileAct = QAction("Delete File", self)
+            deleteFileAct.setStatusTip("Delete the selected file")
+            deleteFileAct.triggered.connect(lambda: self.deleteFileHelper(path))      
+            menu.addAction(openFileAct)      
+            menu.addAction(deleteFileAct)
+        #detect which
+        chosen = menu.exec(self.viewport().mapToGlobal(position))
+    
+    def deleteFolderHelper(self, folder_path):
+        #helper method to delete folders from the file tree view
+        confirm_delete = QMessageBox.question(self, "Message", ("Are you you want to remove folder " + folder_path), QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if confirm_delete == QMessageBox.StandardButton.Yes:
+            deleteFolder(self, folder_path)
+            self.focusOnPath(str(Path(folder_path).parent))
+
+    def deleteFileHelper(self, file_path):
+        #helper method to delete files from the file tree view
+        confirm_delete = QMessageBox.question(self, "Message", ("Are you you want to remove file " + file_path), QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if confirm_delete == QMessageBox.StandardButton.Yes:
+            deleteFile(self, file_path)
+            self.focusOnPath(str(Path(file_path).parent))
+
+    def showErrorMessage(self, error_message):
+        #generic message box that shows an error message and does not allow the user to continue unless they accept
+        message = QMessageBox(self)
+        message.setText(error_message)
+        message.exec()
 
         
     

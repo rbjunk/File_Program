@@ -9,13 +9,15 @@ def createNewFile(window, current_directory, new_file_name):
         #attempt to create the new file, otherwise display a message describing the error
         new_file_location = current_directory+ "/" + new_file_name
         Path.touch(new_file_location, 0o666, False)
-        window.statusBar().showMessage(f"Created file: {new_file_location}")
         #load the newly created file into the text editor
         loadFile(window, new_file_location)
+        return new_file_location
     except FileExistsError as e:
         window.showErrorMessage(("Cannot create file \"" + new_file_name + "\" when that file already exists in " + current_directory))
+        return None
     except PermissionError as e:
         window.showErrorMessage(("Cannot create file \"" + new_file_name + "\" permission denied"))
+        return None
 
 #Create folder
 def createNewFolder(window, current_directory, new_folder_name):
@@ -23,11 +25,13 @@ def createNewFolder(window, current_directory, new_folder_name):
         #attempt to create the new file, otherwise display a message describing the error
         new_folder_location = current_directory+ "/" + new_folder_name
         Path.mkdir(new_folder_location)
-        window.statusBar().showMessage(f"Created folder: {new_folder_location}")
+        return new_folder_location
     except FileExistsError as e:
         window.showErrorMessage(("Cannot create folder \"" + new_folder_name + "\" when that folder already exists in " + current_directory))
+        return None
     except PermissionError as e:
         window.showErrorMessage(("Cannot create folder \"" + new_folder_name + "\" permission denied"))
+        return None
 
 #Load file
 def loadFile(window, file_path):
@@ -35,3 +39,22 @@ def loadFile(window, file_path):
         text = file.read()
         #load the file into the text editor window
         window.textEditor.setPlainText(text)
+
+#Delete File
+def deleteFile(window, file_path):
+    try:
+        os.remove(file_path)
+    except FileNotFoundError as e:
+        window.showErrorMessage("Error: File not found!")
+    except PermissionError as e:
+        window.showErrorMessage(("Cannot delete file \"" + file_path + "\" permission denied"))
+        
+#Delete Folder
+def deleteFolder(window, folder_path):
+    try:
+        shutil.rmtree(folder_path)
+    except FileNotFoundError as e:
+        window.showErrorMessage("Error: Folder not found!")
+    except PermissionError as e:
+        window.showErrorMessage(("Cannot delete folder \"" + folder_path + "\" permission denied"))
+
