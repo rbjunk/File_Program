@@ -218,11 +218,16 @@ class fileTreeView(QTreeView):
             deleteFolderAct = QAction("Delete Folder", self)
             deleteFolderAct.setStatusTip("Delete the selected folder")
             deleteFolderAct.triggered.connect(lambda: self.deleteFolderHelper(path))
+            #Action to rename the selected folder
+            renameFolderAct = QAction("Rename Folder", self)
+            renameFolderAct.setStatusTip("Rename the selected folder")
+            renameFolderAct.triggered.connect(lambda: self.renameFolderHelper(path))
             #check if the folder is already expanded
             if self.isExpanded(index):
                 menu.addAction(collapseFolderAct)
             else:
                 menu.addAction(expandFolderAct)
+            menu.addAction(renameFolderAct)
             menu.addAction(deleteFolderAct)
         else:
             #Context menu actions for files
@@ -234,7 +239,12 @@ class fileTreeView(QTreeView):
             deleteFileAct = QAction("Delete File", self)
             deleteFileAct.setStatusTip("Delete the selected file")
             deleteFileAct.triggered.connect(lambda: self.deleteFileHelper(path))      
-            menu.addAction(openFileAct)      
+            #Action to rename the selected file
+            renameFileAct = QAction("Rename File", self)
+            renameFileAct.setStatusTip("Rename the selected file")
+            renameFileAct.triggered.connect(lambda: self.renameFileHelper(path))
+            menu.addAction(openFileAct)
+            menu.addAction(renameFileAct)
             menu.addAction(deleteFileAct)
         #detect which
         chosen = menu.exec(self.viewport().mapToGlobal(position))
@@ -253,6 +263,25 @@ class fileTreeView(QTreeView):
             deleteFile(self, file_path)
             self.focusOnPath(str(Path(file_path).parent))
 
+    def renameFolderHelper(self, folder_path):
+        #helper method to ask the user for a new folder name for a selected folder in the tree view
+        path = Path(folder_path)
+        old_folder_name = path.name
+        new_folder_name, ok = QInputDialog.getText(self, "Rename Folder", "Enter new folder name:", QLineEdit.EchoMode.Normal, old_folder_name)
+        renamed_folder_path = renameFolder(self, path, new_folder_name)
+        if renamed_folder_path.exists():
+            self.focusOnPath(str(renamed_folder_path))
+    
+    def renameFileHelper(self, file_path):
+        #helper method to ask the user for a new folder name for a selected folder in the tree view
+        path = Path(file_path)
+        old_file_name = path.name
+        new_file_name, ok = QInputDialog.getText(self, "Rename File", "Enter new file name:", QLineEdit.EchoMode.Normal, old_file_name)
+        renamed_file_path = renameFile(self, path, new_file_name)
+        if renamed_file_path.exists():
+            self.focusOnPath(str(renamed_file_path))
+        
+        
     def showErrorMessage(self, error_message):
         #generic message box that shows an error message and does not allow the user to continue unless they accept
         message = QMessageBox(self)

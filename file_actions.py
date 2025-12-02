@@ -7,7 +7,7 @@ from gui import *
 def createNewFile(window, current_directory, new_file_name):
     try: 
         #attempt to create the new file, otherwise display a message describing the error
-        new_file_location = current_directory+ "/" + new_file_name
+        new_file_location = current_directory + "/" + new_file_name
         Path.touch(new_file_location, 0o666, False)
         #load the newly created file into the text editor
         loadFile(window, new_file_location)
@@ -23,7 +23,7 @@ def createNewFile(window, current_directory, new_file_name):
 def createNewFolder(window, current_directory, new_folder_name):
     try:
         #attempt to create the new file, otherwise display a message describing the error
-        new_folder_location = current_directory+ "/" + new_folder_name
+        new_folder_location = current_directory + "/" + new_folder_name
         Path.mkdir(new_folder_location)
         return new_folder_location
     except FileExistsError as e:
@@ -58,3 +58,30 @@ def deleteFolder(window, folder_path):
     except PermissionError as e:
         window.showErrorMessage(("Cannot delete folder \"" + folder_path + "\" permission denied"))
 
+#Rename Folder
+def renameFolder(window, folder_path, new_folder_name):
+    try:
+        new_folder_path = str(Path(folder_path).parent) + "/" + new_folder_name
+        new_folder_path = Path(new_folder_path)
+        renamed_folder_path = folder_path.rename(new_folder_path)
+        return renamed_folder_path
+    except FileNotFoundError as e:
+        window.showErrorMessage("Error: Folder not found!")
+    except PermissionError as e:
+        window.showErrorMessage(("Cannot rename folder \"" + folder_path + "\" permission denied"))
+    except FileExistsError as e:
+        window.showErrorMessage("Error: Folder alread exists")
+
+#Rename File
+def renameFile(window, file_path, new_file_name):
+    try:
+        new_file_path = str(Path(file_path).parent) + "/" + new_file_name
+        new_file_path = Path(new_file_path)
+        renamed_file_path = file_path.rename(new_file_path)
+        return renamed_file_path
+    except FileNotFoundError as e:
+        window.showErrorMessage("Error: File not found!")
+    except PermissionError as e:
+        window.showErrorMessage(("Cannot rename file \"" + file_path + "\" permission denied"))
+    except FileExistsError as e:
+        window.showErrorMessage("Error: File already exists")
