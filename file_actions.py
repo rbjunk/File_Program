@@ -35,10 +35,15 @@ def createNewFolder(window, current_directory, new_folder_name):
 
 #Load file
 def loadFile(window, file_path):
-    with open(file_path, "r", encoding="utf-8") as file:
-        text = file.read()
-        #load the file into the text editor window
-        window.textEditor.setPlainText(text)
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            text = file.read()
+            #load the file into the text editor window
+            window.textEditor.setPlainText(text)
+            window.textEditor.document().setModified(False)
+            window.setWindowTitle(f"Editing - {file_path}")
+    except Exception as e:
+        window.showErrorMessage("Error loading: {e}")
 
 #Delete File
 def deleteFile(window, file_path):
@@ -85,3 +90,17 @@ def renameFile(window, file_path, new_file_name):
         window.showErrorMessage(("Cannot rename file \"" + file_path + "\" permission denied"))
     except FileExistsError as e:
         window.showErrorMessage("Error: File already exists")
+
+#Save file
+def saveFile(window, file_path):
+    try:
+        #grab text from editor window
+        text = window.textEditor.toPlainText()
+        #open the file in write mode and write what was in the editor window
+        with open(file_path, "w", encoding = "utf-8") as file:
+            file.write(text)
+        #Reset the modified flag after a successful save
+        window.textEditor.document().setModified(False)
+        window.showErrorMessage("File saved successfully")
+    except Exception as e:
+        window.showErrorMessage(f"Error saving: {e}")

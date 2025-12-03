@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QTextEdit, QTreeWidget, QDockWidget, QTreeView, QInputDialog, QFileDialog, QLineEdit, QMessageBox, QMenu
-from PyQt6.QtGui import QIcon, QAction, QFileSystemModel
+from PyQt6.QtGui import QIcon, QAction, QFileSystemModel, QFont
 from PyQt6.QtCore import Qt, pyqtSignal
 from pathlib import Path
 from file_actions import *
@@ -30,6 +30,7 @@ class mainWindow(QMainWindow, CenterMixin):
         super().__init__()
         self.current_directory = str(Path.cwd()) #variable to hold the current selected directory, initialized to the top of the current working directory
         self.current_file = None #variable to hold the current selected directory, initialized to None
+        self.active_file = None #variable to hold the path of the currently active file within the text editor
         self.initUI()
 
     def initUI(self):
@@ -58,12 +59,19 @@ class mainWindow(QMainWindow, CenterMixin):
         openFileAct.setStatusTip("Open a file")
         openFileAct.triggered.connect(self.openFile)
 
+    #Menubar action: save file
+        saveFileAct = QAction("Save", self)
+        saveFileAct.setShortcut("Ctrl+S")
+        saveFileAct.setStatusTip("Save a file")
+        saveFileAct.triggered.connect(self.saveFileAction)
+
     #Create menu bar and add menubar members
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(newFileAct)
         fileMenu.addAction(newFolderAct)
         fileMenu.addAction(openFileAct)
+        fileMenu.addAction(saveFileAct)
         fileMenu.addAction(exitAct)
 
     #Central text editor widget
@@ -71,6 +79,8 @@ class mainWindow(QMainWindow, CenterMixin):
         self.textEditor.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         self.textEditor.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setCentralWidget(self.textEditor)
+        font = QFont("Courier", 12)
+        self.textEditor.setFont(font)
 
     #File tree dock widget
         self.file_tree_widget = fileTreeView()
@@ -127,7 +137,24 @@ class mainWindow(QMainWindow, CenterMixin):
 
         if file_path != "": #ensure file path is not empty
             loadFile(self, file_path)
+            self.active_file = file_path
             self.statusBar().showMessage(f"Opened file: {file_path}")
+
+    def saveFileAction(self):
+        if self.active_file:
+            #Normal saving for when a user has already opened a file and edited
+            saveFile(self, self.active_file)
+        else:
+            #Dynamic saving by allowing the user to select a location and name for the file
+            self.saveAsDialog()
+
+    def saveAsDialog(self):
+        #Get a name and location for the file
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save File", "")
+        if file_path: #if valid
+            #focus the file tree on that path and then save
+            self.file_tree_widget.focusOnPath(file_path)
+            saveFile(self, file_path)
 
     def exitProgram(self):
         #display message to confirm the user would like to exit the program
@@ -193,7 +220,7 @@ class fileTreeView(QTreeView):
         #fallback for if a root folder or file was deleted
         else:
             self.fileSelected.emit(None)
-            self.directorySelected.emit(Path.cwd)
+            self.directorySelected.emit(str(Path.cwd()))
 
     def openContextMenu(self, position):
         #Find the index of the item at the position of the cursor
