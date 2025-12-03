@@ -1,2 +1,6 @@
-Python 12.9
-PyQt6
+Build instructions:
+
+Install Python 3.12.X
+Create virtual enviornment (.venv)
+pip install pyqt6
+start -> main.py
