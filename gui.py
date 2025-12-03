@@ -155,6 +155,7 @@ class mainWindow(QMainWindow, CenterMixin):
             #focus the file tree on that path and then save
             self.file_tree_widget.focusOnPath(file_path)
             saveFile(self, file_path)
+            self.active_file = file_path
 
     def exitProgram(self):
         #display message to confirm the user would like to exit the program
