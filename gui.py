@@ -117,6 +117,7 @@ class mainWindow(QMainWindow, CenterMixin):
             file_path = createNewFile(self, self.current_directory, file_name)
             if file_path is not None:
                 self.file_tree_widget.focusOnPath(file_path)
+                self.active_file = file_path
 
     def createFolderAction(self):
         #display message to capture folder name text and attempt folder creation
